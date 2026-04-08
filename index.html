@@ -3,34 +3,68 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tile Scan Viewer</title>
-  <script type="module">
-    import { Viewer } from "https://cdn.skypack.dev/vizarr";
-
-    window.onload = () => {
-      const viewer = new Viewer({
-        container: document.getElementById("viewer"),
-      });
-
-      viewer.addImage({
-        source: "https://pub-50092e82bd504c049bde48c59d5a84db.r2.dev/stitched_full_scan_rowcol_correction.ome.zarr",
-      });
-    };
-  </script>
+  <title>OME-Zarr Viewer</title>
   <style>
-    html, body {
+    html, body, #viewer {
       margin: 0;
       width: 100%;
       height: 100%;
       overflow: hidden;
     }
-    #viewer {
-      width: 100%;
-      height: 100%;
+    #status {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 9999;
+      background: rgba(255,255,255,0.9);
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-family: sans-serif;
+      font-size: 14px;
     }
   </style>
 </head>
 <body>
+  <div id="status">Loading…</div>
   <div id="viewer"></div>
+
+  <script type="module">
+    const status = document.getElementById("status");
+    const zarrUrl = "https://pub-50092e82bd504c049bde48c59d5a84db.r2.dev/stitched_full_scan_rowcol_correction.ome.zarr";
+
+    function setStatus(msg) {
+      status.textContent = msg;
+      console.log(msg);
+    }
+
+    async function run() {
+      try {
+        setStatus("Checking Zarr access...");
+        const r = await fetch(zarrUrl + "/.zattrs");
+        if (!r.ok) throw new Error("Cannot read .zattrs: HTTP " + r.status);
+
+        setStatus("Loading viewer library...");
+        const mod = await import("https://esm.sh/vizarr");
+        console.log("vizarr module:", mod);
+
+        if (!mod.Viewer) {
+          throw new Error("Viewer export not found in vizarr module.");
+        }
+
+        setStatus("Creating viewer...");
+        const viewer = new mod.Viewer({
+          container: document.getElementById("viewer"),
+        });
+
+        viewer.addImage({ source: zarrUrl });
+        setStatus("Viewer loaded.");
+      } catch (err) {
+        console.error(err);
+        setStatus("Error: " + err.message);
+      }
+    }
+
+    run();
+  </script>
 </body>
 </html>
